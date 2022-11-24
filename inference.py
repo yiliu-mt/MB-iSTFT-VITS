@@ -17,6 +17,7 @@ from text.symbols import symbols
 from text import text_to_sequence
 from text import text_to_sequence, cleaned_text_to_sequence
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def get_text(text, hps):
     text_norm = text_to_sequence(text, hps.data.text_cleaners)
@@ -32,7 +33,7 @@ net_g = SynthesizerTrn(
     len(symbols),
     hps.data.filter_length // 2 + 1,
     hps.train.segment_size // hps.data.hop_length,
-    **hps.model).cuda()
+    **hps.model).to(device)
 _ = net_g.eval()
 
 _ = utils.load_checkpoint("/nfs1/yi.liu/tts/mb-istft-vits/pretrained_MB-iSTFT-VITS_ddp.pth.pth", net_g, None)
@@ -52,8 +53,8 @@ with torch.no_grad():
         if hps.data.add_blank:
             text_norm = commons.intersperse(text_norm, 0)
         text_padded = torch.LongTensor(text_norm)
-        x_tst = text_padded.cuda().unsqueeze(0)
-        x_tst_lengths = torch.LongTensor([text_padded.size(0)]).cuda()
+        x_tst = text_padded.to(device).unsqueeze(0)
+        x_tst_lengths = torch.LongTensor([text_padded.size(0)]).to(device)
         audio = net_g.infer(x_tst, x_tst_lengths, noise_scale=.667, noise_scale_w=0.8, length_scale=1)[0][0,0].data.cpu().float().numpy()
 
 # do actual work
@@ -68,8 +69,8 @@ with torch.no_grad():
         if hps.data.add_blank:
             text_norm = commons.intersperse(text_norm, 0)
         text_padded = torch.LongTensor(text_norm)
-        x_tst = text_padded.cuda().unsqueeze(0)
-        x_tst_lengths = torch.LongTensor([text_padded.size(0)]).cuda()
+        x_tst = text_padded.to(device).unsqueeze(0)
+        x_tst_lengths = torch.LongTensor([text_padded.size(0)]).to(device)
 
         start_time = time.time()
         audio = net_g.infer(x_tst, x_tst_lengths, noise_scale=.667, noise_scale_w=0.8, length_scale=1)[0][0,0].data.cpu().float().numpy()
